@@ -1,0 +1,84 @@
+program main
+   implicit none 
+   include 'parameters.inc'
+   integer :: i, j, p, q
+   real :: xs, start, finish, tmp, xss, ess, xinter, einter
+   real, dimension (:,:), allocatable :: hankel
+   real, dimension(:,:),  allocatable :: L
+  ! open(newunit=io, file="log.txt", status="replace", action="write")
+   call cpu_time(start)
+   xinter=xupper-xlower
+   einter=eupper-elower
+   allocate ( hankel(s+1,s+1) )
+   allocate ( L(s+1,s+1) )
+   ! ! write(6,'(3f10.5)') (L(i,:), i=1,n)
+   write(1,*) s, xsize, g
+   do i = 1, xsize
+      xss=xlower+i*xinter/xsize
+      do j= 1, esize
+         ess=elower+j*einter/esize
+          call hankel_matrix(s, ess, g, xss, hankel)
+          call cholesky(s+1, hankel, L)
+         ! print*, "for xss = ",xss," and  ess =  ",ess," L is ", L
+          if (.not.ANY( isnan(L) )) then
+             write(2,*) ess, xss            
+          end if 
+       end do
+   end do    
+
+!   close(io)
+   ! if (isnan()) stop '"x" is a NaN'
+     
+   call cpu_time(finish)
+   print '("Time = ",f6.3," seconds.")',finish-start
+ stop
+
+end program main
+
+recursive function xs(s, E, g, x2) result(res)
+implicit none
+integer::s
+real ::  res, E, g, x2 
+if (MOD(s,2)==1) then
+   res=0;
+else if (s < 0) then
+   res =0;
+else if(s==0) then
+   res=1
+else if(s==2) then
+   res = x2
+else
+   res = (4*(s-3)*E*xs(s-4,E,g,x2)+(s-3)*(s-4)*(s-5)*xs(s-6,E,g,x2)-4*(s-2)*xs(s-2,E,g,x2))/(4*g*(s-1))
+return
+end if
+end function 
+
+subroutine hankel_matrix(s, E, g, x2, hankel)
+  integer :: i, j
+  integer, intent(in) :: s
+  real :: xs, start, finish, tmp
+  real, intent(in) :: E, g, x2
+  real, dimension (s+1,s+1), intent(out) :: hankel
+ 
+ ! allocate ( hankel(s+1,s+1) )
+  do i = 1, s+1           
+     do j = 1, s+1                
+        hankel(i,j) = xs(i+j-2,E,g,x2)               
+      end do      
+   end do
+
+end subroutine hankel_matrix
+
+subroutine cholesky(n, A, L)
+   implicit none
+   integer,    intent(in)    :: n
+   real,     intent(in)    :: A(n,n)
+   real,    intent(out)   :: L(n,n)
+   integer    :: i,j
+   do j = 1, n
+       L(j,j) = sqrt( A(j,j) - dot_product(L(j,1:j-1),L(j,1:j-1)) )  
+        do i = j+1, n
+           L(i,j)  = ( A(i,j) - dot_product(L(i,1:j-1),L(j,1:j-1)) ) / L(j,j)
+        end do
+     end do
+  end subroutine cholesky
